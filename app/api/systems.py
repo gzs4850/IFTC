@@ -39,7 +39,7 @@ def new_system():
     system.status = 1
     exist_system = System.query.filter_by(name=system.name).first()
     if exist_system:
-        return jsonify({'code':0, 'message': '该项目名称已存在'})
+        return jsonify({'code':0, 'message': '该系统名称已存在'})
     db.session.add(system)
     db.session.commit()
     return jsonify({
