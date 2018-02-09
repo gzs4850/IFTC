@@ -1,6 +1,7 @@
 from datetime import datetime
 from . import db
 from app.exceptions import ValidationError
+import json
 
 
 class Project(db.Model):
@@ -139,13 +140,13 @@ class Testcase(db.Model):
             'id': self.id,
             'name': self.name,
             'interface_id': self.interface_id,
-            'request_json': self.request_json,
-            'request_head': self.request_head,
+            'request_json': json.loads(self.request_json),
+            'request_head': json.loads(self.request_head),
             'request_path': self.request_path,
-            'response_json': self.response_json,
-            'response_head': self.response_head,
-            'check_json': self.check_json,
-            'ref_json': self.ref_json,
+            'response_json': json.loads(self.response_json),
+            'response_head': json.loads(self.response_head),
+            'check_json': json.loads(self.check_json),
+            'ref_json': json.loads(self.ref_json),
             'is_case': self.is_case,
             'status': self.status,
             'timestamp': self.timestamp
@@ -156,13 +157,13 @@ class Testcase(db.Model):
     def from_json(json_testcase):
         name = json_testcase.get('name')
         interface_id = json_testcase.get('interface_id')
-        request_json = json_testcase.get('request_json')
-        request_head = json_testcase.get('request_head')
+        request_json = json.dumps(json_testcase.get('request_json'))
+        request_head = json.dumps(json_testcase.get('request_head'))
         request_path = json_testcase.get('request_path')
-        response_json = json_testcase.get('response_json')
-        response_head = json_testcase.get('response_head')
-        check_json = json_testcase.get('check_json')
-        ref_json = json_testcase.get('ref_json')
+        response_json = json.dumps(json_testcase.get('response_json'))
+        response_head = json.dumps(json_testcase.get('response_head'))
+        check_json = json.dumps(json_testcase.get('check_json'))
+        ref_json = json.dumps(json_testcase.get('ref_json'))
         if name is None or name == '':
             raise ValidationError('name is null')
         return Testcase(name=name, interface_id=interface_id, request_json=request_json, request_head=request_head,
