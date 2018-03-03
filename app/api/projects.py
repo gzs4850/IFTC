@@ -50,8 +50,8 @@ def new_project():
 @api.route('/projects/<int:id>', methods=['PUT'])
 def edit_project(id):
     project = Project.query.get_or_404(id)
-    project.name = request.json.get('name', project.name)
-    project.desc = request.json.get('desc', project.desc)
+    project.pro_name = request.json.get('pro_name', project.pro_name)
+    project.pro_desc = request.json.get('pro_desc', project.pro_desc)
     db.session.add(project)
     db.session.commit()
     return jsonify({

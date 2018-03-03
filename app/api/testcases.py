@@ -1,15 +1,22 @@
 # coding:utf-8
 from flask import jsonify, request, g, url_for, current_app
 from .. import db
-from ..models import Testcase
+from ..models import Testcase,Caserefer,Interface, System, Project
 from . import api
+from httprunner.cli import single_run
 
 @api.route('/testcases/')
 def get_testcases():
     page = request.args.get('page', 1, type=int)
-    pagination = Testcase.query.filter_by(status=1).paginate(
-        page, per_page=current_app.config['FLASKY_PER_PAGE'],
-        error_out=False)
+
+    pagination = db.session.query(Testcase.id, Testcase.case_name, Testcase.request_path, Testcase.request_head, Testcase.request_json, Testcase.check_json, Testcase.ref_json, Testcase.status,
+                                  Interface.if_name, System.sys_name,Project.pro_name).filter_by(status=1).join(Interface,Testcase.interface_id == Interface.id).join(Project,Interface.project_id == Project.id).join(System, Interface.system_id == System.id) \
+        .paginate(page, per_page=current_app.config['FLASKY_PER_PAGE'], error_out=False)
+
+    # pagination = Testcase.query.filter_by(status=1).paginate(
+    #     page, per_page=current_app.config['FLASKY_PER_PAGE'],
+    #     error_out=False)
+
     testcases = pagination.items
     prev = None
     if pagination.has_prev:
@@ -19,7 +26,8 @@ def get_testcases():
         next = url_for('api.get_projects', page=page+1)
     return jsonify({
         'code': 1,
-        'testcases': [testcase.to_json() for testcase in testcases],
+        'testcases': [{'id':testcase.id,'case_name':testcase.case_name,'request_path':testcase.request_path,'request_head':testcase.request_head,'request_json':testcase.request_json,'check_json':testcase.check_json,
+                        'ref_json':testcase.ref_json,'status':testcase.status,'if_name':testcase.if_name,'sys_name':testcase.sys_name,'pro_name':testcase.pro_name} for testcase in testcases],
         'prev': prev,
         'next': next,
         'count': pagination.total
@@ -28,6 +36,9 @@ def get_testcases():
 @api.route('/testcases/<int:id>')
 def get_testcase(id):
     testcase = Testcase.query.get_or_404(id)
+    for key in testcase.to_json().keys():
+        print('%s:%s' %(key,testcase.to_json().get(key)))
+
     return jsonify({
         'code': 1,
         'testcase': testcase.to_json()
@@ -46,7 +57,7 @@ def new_testcase():
 @api.route('/testcases/<int:id>', methods=['PUT'])
 def edit_testcase(id):
     testcase = Testcase.query.get_or_404(id)
-    testcase.name = request.json.get('name', testcase.name)
+    testcase.case_name = request.json.get('case_name', testcase.case_name)
     testcase.interface_id = request.json.get('interface_id', testcase.interface_id)
     testcase.request_json = request.json.get('request_json', testcase.request_json)
     testcase.request_head = request.json.get('request_head', testcase.request_head)
@@ -69,3 +80,45 @@ def delete_testcase(id):
     db.session.add(testcase)
     db.session.commit()
     return jsonify({'code': 1, 'message': '删除成功'})
+
+@api.route('/runtestcase/<int:id>', methods=['POST'])
+def run_testcase(id):
+    testset = load_testcases(id)
+    print('testset:%s', testset)
+    single_run(testset)
+    return jsonify({'code': 1, 'message': '执行成功'})
+
+
+def load_testcases(caseid):
+    testsets = []
+    testcases = []
+    caselist = get_referCase(caseid)
+    print('testcaseList:%s', caselist)
+    for caseid in caselist:
+        testcase = Testcase.query.get_or_404(caseid)
+        case_name = testcase.to_json().get('case_name')
+        interface_id = testcase.to_json().get('interface_id')
+        request_json = testcase.to_json().get('request_json')
+        request_head = testcase.to_json().get('request_head')
+        request_path = testcase.to_json().get('request_path')
+        check_json = testcase.to_json().get('check_json')
+        ref_json = testcase.to_json().get('ref_json')
+        is_case = testcase.to_json().get('is_case')
+        interface = Interface.query.filter_by(id = interface_id).first()
+        print(interface)
+        method = interface.to_json().get('method')
+        testcases.append({'case_name':case_name,'request':{'url':request_path, 'headers':request_head, 'method':method, 'json':request_json}, 'variables':[], 'extract':ref_json, 'validate':check_json})
+    dict = {'name':'', 'config':'', 'api':'', 'testcases':testcases}
+    testsets.append(dict)
+    return testsets
+
+
+def get_referCase(id):
+    referlist = []
+    caserefer = Caserefer.query.filter_by(mockid=id).order_by(Caserefer.ordernum).all()
+    if caserefer:
+        print("............start query............")
+        for case in caserefer:
+            referlist.append(case.to_json().get('refer_mockid'))
+        referlist.append(id)
+        return referlist

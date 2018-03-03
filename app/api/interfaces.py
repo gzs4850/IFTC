@@ -1,15 +1,18 @@
 # coding:utf-8
 from flask import jsonify, request, url_for, current_app
 from .. import db
-from ..models import Interface
+from ..models import Interface,Project,System
 from . import api
 
 @api.route('/interfaces/')
 def get_interfaces():
     page = request.args.get('page', 1, type=int)
-    pagination = Interface.query.filter_by(status=1).paginate(
-        page, per_page=current_app.config['FLASKY_PER_PAGE'],
-        error_out=False)
+
+    pagination = db.session.query(Interface.id, Interface.if_name, Interface.if_desc, Interface.status, Interface.protocol,Interface.method,
+                                  Interface.url, Interface.autotest, Interface.project_id, Interface.system_id,Project.pro_name,
+                                  System.sys_name).filter_by(status=1).join(Project,Interface.project_id == Project.id).join(System,Interface.system_id == System.id)\
+        .paginate(page, per_page=current_app.config['FLASKY_PER_PAGE'],error_out=False)
+
     interfaces = pagination.items
     prev = None
     if pagination.has_prev:
@@ -19,7 +22,8 @@ def get_interfaces():
         next = url_for('api.get_interfaces', page=page+1)
     return jsonify({
         'code': 1,
-        'interfaces': [interface.to_json() for interface in interfaces],
+        'interfaces': [{'id':interface.id,'if_name':interface.if_name,'if_desc':interface.if_desc,'status':interface.status,'protocol':interface.protocol,'method':interface.method,
+                        'url':interface.url,'autotest':interface.autotest,'project_id':interface.project_id,'system_id':interface.system_id,'pro_name':interface.pro_name,'sys_name':interface.sys_name} for interface in interfaces],
         'prev': prev,
         'next': next,
         'count': pagination.total
@@ -47,8 +51,8 @@ def new_interface():
 @api.route('/interfaces/<int:id>', methods=['PUT'])
 def edit_interface(id):
     interface = Interface.query.get_or_404(id)
-    interface.name = request.json.get('name', interface.name)
-    interface.desc = request.json.get('desc', interface.desc)
+    interface.if_name = request.json.get('if_name', interface.if_name)
+    interface.if_desc = request.json.get('if_desc', interface.if_desc)
     interface.system_id = request.json.get('system_id', interface.system_id)
     interface.project_id = request.json.get('project_id', interface.project_id)
     interface.protocol = request.json.get('protocol', interface.protocol)
