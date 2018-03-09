@@ -8,10 +8,24 @@ from . import api
 def get_interfaces():
     page = request.args.get('page', 1, type=int)
 
-    pagination = db.session.query(Interface.id, Interface.if_name, Interface.if_desc, Interface.status, Interface.protocol,Interface.method,
-                                  Interface.url, Interface.autotest, Interface.project_id, Interface.system_id,Project.pro_name,
-                                  System.sys_name).filter_by(status=1).join(Project,Interface.project_id == Project.id).join(System,Interface.system_id == System.id)\
-        .paginate(page, per_page=current_app.config['FLASKY_PER_PAGE'],error_out=False)
+    if request.args:
+        sys_id = request.args.get('system_id')
+
+        pagination = db.session.query(Interface.id, Interface.if_name, Interface.if_desc, Interface.status,
+                                      Interface.protocol, Interface.method,
+                                      Interface.url, Interface.autotest, Interface.project_id, Interface.system_id,
+                                      Project.pro_name,
+                                      System.sys_name).filter(Interface.system_id==sys_id if System.project_id is not None else "", Interface.status == 1).join(Project,
+                                                                                Interface.project_id == Project.id).join(
+            System, Interface.system_id == System.id) \
+            .paginate(page, per_page=current_app.config['FLASKY_PER_PAGE'], error_out=False)
+
+    else:
+
+        pagination = db.session.query(Interface.id, Interface.if_name, Interface.if_desc, Interface.status, Interface.protocol,Interface.method,
+                                      Interface.url, Interface.autotest, Interface.project_id, Interface.system_id,Project.pro_name,
+                                      System.sys_name).filter_by(status=1).join(Project,Interface.project_id == Project.id).join(System,Interface.system_id == System.id)\
+            .paginate(page, per_page=current_app.config['FLASKY_PER_PAGE'],error_out=False)
 
     interfaces = pagination.items
     prev = None

@@ -139,6 +139,19 @@ class Caserefer(db.Model):
         }
         return json_caserefer
 
+    @staticmethod
+    def from_json(json_caserefer):
+        mockid = json_caserefer.get('mockid')
+        refer_mockid = json_caserefer.get('refer_mockid')
+        ordernum = json_caserefer.get('ordernum')
+        if mockid is None or mockid == '':
+            raise ValidationError('mockid is null')
+        if refer_mockid is None or refer_mockid == '':
+            raise ValidationError('refer_mockid is null')
+        if ordernum is None or ordernum == '':
+            raise ValidationError('ordernum is null')
+        return Caserefer(mockid=mockid, refer_mockid=refer_mockid, ordernum=ordernum)
+
 class Testcase(db.Model):
     __tablename__ = 'testcases'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -181,7 +194,7 @@ class Testcase(db.Model):
         interface_id = json_testcase.get('interface_id')
         request_json = json.dumps(json_testcase.get('request_json'))
         request_head = json.dumps(json_testcase.get('request_head'))
-        request_path = json_testcase.get('request_path')
+        request_path = json_testcase.get('url')
         response_json = json.dumps(json_testcase.get('response_json'))
         response_head = json.dumps(json_testcase.get('response_head'))
         check_json = json.dumps(json_testcase.get('check_json'))
@@ -192,3 +205,63 @@ class Testcase(db.Model):
                    request_path=request_path, response_json=response_json, response_head=response_head,
                    check_json=check_json, ref_json=ref_json)
 
+class Caseextract(db.Model):
+    __tablename__ = 'caseextracts'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    mockid = db.Column(db.Integer, db.ForeignKey('testcases.id'))
+    extract_name = db.Column(db.String(128))
+    extract_value = db.Column(db.String(128))
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+
+    def to_json(self):
+        json_caseextract = {
+            'id': self.id,
+            'mockid': self.mockid,
+            'extract_name': self.extract_name,
+            'extract_value': self.extract_value,
+            'timestamp': self.timestamp
+        }
+        return json_caseextract
+
+    @staticmethod
+    def from_json(json_caseextract):
+        mockid = json_caseextract.get('mockid')
+        extract_name = json_caseextract.get('extract_name')
+        extract_value = json_caseextract.get('extract_value')
+        if mockid is None or mockid == '':
+            raise ValidationError('mockid is null')
+        if extract_name is None or extract_name == '':
+            raise ValidationError('extract_name is null')
+        if extract_value is None or extract_value == '':
+            raise ValidationError('extract_value is null')
+        return Caseextract(mockid=mockid, extract_name=extract_name, extract_value=extract_value)
+
+class Testresult(db.Model):
+    __tablename__ = 'testresults'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    case_id = db.Column(db.Integer, db.ForeignKey('testcases.id'))
+    test_result = db.Column(db.String(10))
+    real_rsp_code = db.Column(db.String(20))
+    real_req_path = db.Column(db.String(256))
+    real_req_head = db.Column(db.Text)
+    real_req_json = db.Column(db.Text)
+    real_rsp_head = db.Column(db.Text)
+    real_rsp_json = db.Column(db.Text)
+    real_rsp_time = db.Column(db.String(20))
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+
+    def to_json(self):
+        json_testcase = {
+            'id': self.id,
+            'case_id': self.case_id,
+            'test_result': self.test_result,
+            'real_rsp_code': self.real_rsp_code,
+            'real_req_path': self.real_req_path,
+            'real_req_head': json.loads(self.real_req_head),
+            'real_req_json': json.loads(self.real_req_json),
+            'real_rsp_head': json.loads(self.real_rsp_head),
+            'real_rsp_json': json.loads(self.real_rsp_json),
+            'real_rsp_time': self.real_rsp_time,
+            'timestamp': self.timestamp
+        }
+        return json_testcase
