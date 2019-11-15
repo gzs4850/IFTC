@@ -37,7 +37,7 @@ def get_project(id):
 def new_project():
     project = Project.from_json(request.json)
     project.status = 1
-    exist_project = Project.query.filter_by(name=project.name).first()
+    exist_project = Project.query.filter_by(pro_name=project.pro_name).first()
     if exist_project:
         return jsonify({'code':0, 'message': '该项目名称已存在'})
     db.session.add(project)

@@ -159,7 +159,7 @@ class Testcase(db.Model):
     interface_id = db.Column(db.Integer, db.ForeignKey('interfaces.id'))
     request_json = db.Column(db.Text)
     request_head = db.Column(db.Text)
-    request_path = db.Column(db.String(128))
+    url = db.Column(db.String(128))
     response_json = db.Column(db.Text)
     response_head = db.Column(db.Text)
     check_json = db.Column(db.Text)
@@ -177,7 +177,7 @@ class Testcase(db.Model):
             'interface_id': self.interface_id,
             'request_json': json.loads(self.request_json),
             'request_head': json.loads(self.request_head),
-            'request_path': self.request_path,
+            'url': self.url,
             'response_json': json.loads(self.response_json),
             'response_head': json.loads(self.response_head),
             'check_json': json.loads(self.check_json),
@@ -194,7 +194,7 @@ class Testcase(db.Model):
         interface_id = json_testcase.get('interface_id')
         request_json = json.dumps(json_testcase.get('request_json'))
         request_head = json.dumps(json_testcase.get('request_head'))
-        request_path = json_testcase.get('url')
+        url = json_testcase.get('url')
         response_json = json.dumps(json_testcase.get('response_json'))
         response_head = json.dumps(json_testcase.get('response_head'))
         check_json = json.dumps(json_testcase.get('check_json'))
@@ -202,7 +202,7 @@ class Testcase(db.Model):
         if case_name is None or case_name == '':
             raise ValidationError('case_name is null')
         return Testcase(case_name=case_name, interface_id=interface_id, request_json=request_json, request_head=request_head,
-                   request_path=request_path, response_json=response_json, response_head=response_head,
+                   url=url, response_json=response_json, response_head=response_head,
                    check_json=check_json, ref_json=ref_json)
 
 class Caseextract(db.Model):
@@ -236,6 +236,42 @@ class Caseextract(db.Model):
             raise ValidationError('extract_value is null')
         return Caseextract(mockid=mockid, extract_name=extract_name, extract_value=extract_value)
 
+class Assertrule(db.Model):
+    __tablename__ = 'assertrules'
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    mockid = db.Column(db.Integer, db.ForeignKey('testcases.id'))
+    assert_type = db.Column(db.String(64))
+    exp_value = db.Column(db.String(128))
+    act_value = db.Column(db.String(128))
+    timestamp = db.Column(db.DateTime, default=datetime.now)
+
+    def to_json(self):
+        json_assertrule = {
+            'id': self.id,
+            'mockid': self.mockid,
+            'assert_type': self.assert_type,
+            'exp_value': self.exp_value,
+            'act_value': self.act_value,
+            'timestamp': self.timestamp
+        }
+        return json_assertrule
+
+    @staticmethod
+    def from_json(json_assertrule):
+        mockid = json_assertrule.get('mockid')
+        assert_type = json_assertrule.get('assert_type')
+        exp_value = json_assertrule.get('exp_value')
+        act_value = json_assertrule.get('act_value')
+        if mockid is None or mockid == '':
+            raise ValidationError('mockid is null')
+        if assert_type is None or assert_type == '':
+            raise ValidationError('assert_type is null')
+        if exp_value is None or exp_value == '':
+            raise ValidationError('exp_value is null')
+        if act_value is None or act_value == '':
+            raise ValidationError('act_value is null')
+        return Assertrule(mockid=mockid, assert_type=assert_type, exp_value=exp_value, act_value=act_value)
+
 class Testresult(db.Model):
     __tablename__ = 'testresults'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -251,7 +287,7 @@ class Testresult(db.Model):
     timestamp = db.Column(db.DateTime, default=datetime.now)
 
     def to_json(self):
-        json_testcase = {
+        json_testresult = {
             'id': self.id,
             'case_id': self.case_id,
             'test_result': self.test_result,
@@ -264,4 +300,4 @@ class Testresult(db.Model):
             'real_rsp_time': self.real_rsp_time,
             'timestamp': self.timestamp
         }
-        return json_testcase
+        return json_testresult

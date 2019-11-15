@@ -1,16 +1,16 @@
 # coding:utf-8
 from flask import jsonify, request, g, url_for, current_app
 from .. import db
-from ..models import Testcase, Caserefer, Interface, System, Project, Caseextract
+from ..models import Testcase, Caserefer, Interface, System, Project, Caseextract, Assertrule
 from . import api
-from httprunner.cli import single_run
+# from httprunner.cli import single_run
 
 
 @api.route('/testcases/')
 def get_testcases():
     page = request.args.get('page', 1, type=int)
 
-    pagination = db.session.query(Testcase.id, Testcase.case_name, Testcase.request_path, Testcase.request_head,
+    pagination = db.session.query(Testcase.id, Testcase.case_name, Testcase.url, Testcase.request_head,
                                   Testcase.request_json, Testcase.check_json, Testcase.ref_json, Testcase.status,
                                   Interface.if_name, System.sys_name, Project.pro_name, Testcase.interface_id,
                                   Interface.system_id, Interface.project_id, Interface.method,
@@ -32,7 +32,7 @@ def get_testcases():
         next = url_for('api.get_projects', page=page + 1)
     return jsonify({
         'code': 1,
-        'testcases': [{'id': testcase.id, 'case_name': testcase.case_name, 'request_path': testcase.request_path,
+        'testcases': [{'id': testcase.id, 'case_name': testcase.case_name, 'url': testcase.url,
                        'request_head': testcase.request_head, 'request_json': testcase.request_json,
                        'check_json': testcase.check_json,
                        'ref_json': testcase.ref_json, 'status': testcase.status, 'if_name': testcase.if_name,
@@ -76,7 +76,7 @@ def edit_testcase(id):
     testcase.interface_id = request.json.get('interface_id', testcase.interface_id)
     testcase.request_json = request.json.get('request_json', testcase.request_json)
     testcase.request_head = request.json.get('request_head', testcase.request_head)
-    testcase.request_path = request.json.get('request_path', testcase.request_path)
+    testcase.url = request.json.get('url', testcase.url)
     testcase.response_json = request.json.get('response_json', testcase.response_json)
     testcase.response_head = request.json.get('response_head', testcase.response_head)
     testcase.check_json = request.json.get('check_json', testcase.check_json)
@@ -102,7 +102,7 @@ def delete_testcase(id):
 def run_testcase(id):
     testset = load_testcases(id)
     print('testset:%s', testset)
-    single_run(testset)
+    # single_run(testset)
     return jsonify({'code': 1, 'message': '执行成功'})
 
 
@@ -117,7 +117,7 @@ def load_testcases(caseid):
         interface_id = testcase.to_json().get('interface_id')
         request_json = testcase.to_json().get('request_json')
         request_head = testcase.to_json().get('request_head')
-        request_path = testcase.to_json().get('request_path')
+        url = testcase.to_json().get('url')
         check_json = testcase.to_json().get('check_json')
         ref_json = testcase.to_json().get('ref_json')
         is_case = testcase.to_json().get('is_case')
@@ -125,7 +125,7 @@ def load_testcases(caseid):
         print(interface)
         method = interface.to_json().get('method')
         testcases.append({'case_name': case_name,
-                          'request': {'url': request_path, 'headers': request_head, 'method': method,
+                          'request': {'url': url, 'headers': request_head, 'method': method,
                                       'json': request_json}, 'variables': [], 'extract': ref_json,
                           'validate': check_json})
     dict = {'name': '', 'config': '', 'api': '', 'testcases': testcases}
@@ -156,9 +156,9 @@ def get_referCase(id):
 def new_referCase():
     ordernum = 1
     caserefer = Caserefer.query.filter_by(mockid=request.json.get('mockid')).order_by(db.desc(Caserefer.ordernum)).first()
-    if caserefer:
-        ordernum = int(caserefer.ordernum)+1
-        print(ordernum)
+    # if caserefer:
+    #     ordernum = int(caserefer.ordernum)+1
+    #     print(ordernum)
     request.json['ordernum']=ordernum
     caserefer = Caserefer.from_json(request.json)
     db.session.add(caserefer)
@@ -175,15 +175,14 @@ def delete_referCase(id):
     db.session.commit()
     return jsonify({'code': 1, 'message': '删除成功'})
 
-
 @api.route('/testcases/caseextract/<int:id>')
 def get_caseExtract(id):
-    caseextracts = db.session.query(Caseextract.mockid, Caseextract.extract_name, Caseextract.extract_value, Testcase.case_name).filter_by(mockid=id).join(
+    caseextracts = db.session.query(Caseextract.id, Caseextract.mockid, Caseextract.extract_name, Caseextract.extract_value, Testcase.case_name).filter_by(mockid=id).join(
         Testcase, Caseextract.mockid == Testcase.id)
 
     return jsonify({
         'code': 1,
-        'caseextracts': [{'mockid': caseextract.mockid, 'extract_name': caseextract.extract_name, 'extract_value': caseextract.extract_value, 'refer_casename': caseextract.case_name} for
+        'caseextracts': [{'id':caseextract.id, 'mockid': caseextract.mockid, 'extract_name': caseextract.extract_name, 'extract_value': caseextract.extract_value, 'refer_casename': caseextract.case_name} for
                        caseextract in caseextracts]
     })
 
@@ -201,5 +200,33 @@ def new_caseExtract():
 def delete_caseExtract(id):
     caseextract = Caseextract.query.get_or_404(id)
     db.session.delete(caseextract)
+    db.session.commit()
+    return jsonify({'code': 1, 'message': '删除成功'})
+
+@api.route('/testcases/assertrule/<int:id>')
+def get_assertRule(id):
+    assertrules = db.session.query(Assertrule.id, Assertrule.mockid, Assertrule.assert_type, Assertrule.exp_value, Assertrule.act_value, Testcase.case_name).filter_by(mockid=id).join(
+        Testcase, Assertrule.mockid == Testcase.id)
+
+    return jsonify({
+        'code': 1,
+        'assertrules': [{'id':assertrule.id, 'mockid': assertrule.mockid, 'assert_type': assertrule.assert_type, 'exp_value': assertrule.exp_value, 'act_value': assertrule.act_value, 'refer_casename': assertrule.case_name} for
+                        assertrule in assertrules]
+    })
+
+@api.route('/testcases/assertrule/', methods=['POST'])
+def new_assertRule():
+    assertrule = Assertrule.from_json(request.json)
+    db.session.add(assertrule)
+    db.session.commit()
+    return jsonify({
+        'code': 1,
+        'assertrule': assertrule.to_json()
+    })
+
+@api.route('/testcases/assertrule/<int:id>', methods=['DELETE'])
+def delete_assertRule(id):
+    assertrule = Assertrule.query.get_or_404(id)
+    db.session.delete(assertrule)
     db.session.commit()
     return jsonify({'code': 1, 'message': '删除成功'})

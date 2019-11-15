@@ -2,13 +2,19 @@
 from flask import jsonify
 from ..models import Testresult
 from . import api
-
+from .. import db
 
 @api.route('/testresults/<int:id>')
 def get_testresult(id):
-    testresult = Testresult.query.get_or_404(id)
+    testresult = db.session.query(Testresult).filter(Testresult.case_id==id).first()
 
-    return jsonify({
-        'code': 1,
-        'testresult': testresult.to_json()
-    })
+    if testresult:
+        return jsonify({
+            'code': 1,
+            'testresult': testresult.to_json()
+        })
+    else:
+        return jsonify({
+            'code':1,
+            'testresult':{}
+        })
